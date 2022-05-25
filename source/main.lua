@@ -23,8 +23,6 @@ local linksToAddPerApple = 3
 local level = 1
 local wrapAroundScreen = true
 
-local appleWillBeEaten = nil
-
 local function gameplayAreaWidth() return screenWidth end
 local function gameplayAreaHeight() return screenHeight - statusBarHeight end
 
@@ -46,8 +44,11 @@ local function printPoint(p) return "("..p.x..", "..p.y..")" end
 
 -- Snake movement loop parameters
 local movementInterval = 300 -- how often the snake moves in ms
-local movementDutyCycle = .9 -- % of time the snake spends moving, rather than sitting in place
 local movementTimer = nil
+
+-- Level parameters
+local lvlUpPerApples = 3
+local maxLvl = 15
 
 local gamestate = {
     player = nil,
@@ -89,8 +90,8 @@ end
 -- Snake segment config
 local segmentPadding = 0
 
-function drawSegment(x, y)
-    local x, y = gridCoordToScreen(x, y)
+local function drawSegment(x, y)
+    x, y = gridCoordToScreen(x, y)
     gfx.fillRect(
         x+1+segmentPadding, 
         y+1+segmentPadding, 
@@ -142,13 +143,15 @@ function player:setTarget()
 end
 
 function player:move()
-    -- set targets for all the player segments
+    -- move all the segment coordinates up a spot
     -- player:printSegmentCoords()
     for i = #player.segmentCoords,2,-1 do
         player.segmentCoords[i] = player.segmentCoords[i-1]
     end
     player.prevDirection = player.direction
-    player.segmentCoords[1] = player:setTarget()
+    player.segmentCoords[1] = player:setTarget() -- move the head forward
+
+    -- if we ran into the apple, eat it
     if player.segmentCoords[1].x == apple.gridLoc.x and 
        player.segmentCoords[1].y == apple.gridLoc.y then
         self:eat()
@@ -188,8 +191,8 @@ function player:eat()
     apple:move(player.segmentCoords)
     self:addTailLinks(linksToAddPerApple)
     self.score += 1;
-    if self.score % 3 == 0 then
-        movementInterval -= math.log(2+self.score, 1.5)
+    if self.score % lvlUpPerApples == 0 and level < maxLvl then
+        movementInterval -= .15 * movementInterval -- lvlSpeedups[level] -- math.log(3+3*self.score, 1.5)
         level += 1
         resetMovementTimer()
     end
@@ -201,8 +204,13 @@ local function drawStatusText()
     -- set text to white
     gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
     
+    local lvlTxt = "Lvl "..level
+    if level == maxLvl then
+        lvlTxt = lvlTxt.." !!MAX!! "
+    end
+
     gfx.drawText("Score: "..player.score, 0, 0)
-    gfx.drawTextAligned(level, screenWidth, 0, kTextAlignment.right)
+    gfx.drawTextAligned(lvlTxt, screenWidth, 0, kTextAlignment.right)
 
     -- set draw mode back
     gfx.setImageDrawMode(origDrawMode)
