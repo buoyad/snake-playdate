@@ -1,5 +1,6 @@
 import "CoreLibs/object"
 import "CoreLibs/graphics"
+import "CoreLibs/easing"
 import "CoreLibs/sprites"
 import "CoreLibs/timer"
 
@@ -44,7 +45,7 @@ end
 local function printPoint(p) return "("..p.x..", "..p.y..")" end
 
 -- Snake movement loop parameters
-local movementInterval = 300
+local movementInterval = 300 -- how often the snake moves in ms
 local movementDutyCycle = .9 -- % of time the snake spends moving, rather than sitting in place
 local movementTimer = nil
 
@@ -137,23 +138,46 @@ function Segment:draw()
         gridUnit-1-segmentPadding*2)
 end
 
+function Segment:isGoingOffScreen()
+    return self.target.x - self.x < -2 or -- off screen to the right -->
+        self.target.x - self.x > 2 or -- <--
+        self.target.y - self.y < -2 or -- off bottom off screen
+        self.target.y - self.y > 2 -- off top of screen
+end
+
 function Segment:move()
     if not self.target then return end
     local x1, y1 = gridCoordToScreen(self.x, self.y)
     local animatorGeometry
-    if self.target.x - self.x < -10 then
-        local x2, y2 = x1 + gridUnit, y1
-        -- print("target: "..printPoint(self.target))
+    local animatorDurations = movementDutyCycle*movementInterval
+    local easingFns = playdate.easingFunctions.linear
+    if self:isGoingOffScreen() then
+        local x2, y2, x3, y3
         local x4, y4 = gridCoordToScreen(self.target.x, self.target.y)
-        local x3, y3 = x4 - gridUnit, y4
+        if self.target.x - self.x < -2 then
+            x2, y2 = x1 + gridUnit, y1
+            x3, y3 = x4 - gridUnit, y4
+        elseif self.target.x - self.x > 2 then
+            x2, y2 = x1 - gridUnit, y1
+            x3, y3 = x4 + gridUnit, y4
+        elseif self.target.y - self.y < -2 then
+            x2, y2 = x1, y1 + gridUnit
+            x3, y3 = x4, y4 - gridUnit
+        elseif self.target.y - self.y > 2 then
+            x2, y2 = x1, y1 - gridUnit
+            x3, y3 = x4, y4 + gridUnit
+        end
         local p1 = playdate.geometry.lineSegment.new(x1, y1, x2, y2)
-        local p2 = playdate.geometry.lineSegment.new(x3, y3, x4, y4)
-        animatorGeometry = {p1, p2}
+        local p2 = playdate.geometry.lineSegment.new(x2, y2, x3, y3)
+        local p3 = playdate.geometry.lineSegment.new(x3, y3, x4, y4)
+        animatorGeometry = {p1, p2, p3}
+        animatorDurations = {animatorDurations/2, 0, animatorDurations/2}
+        easingFns = {playdate.easingFunctions.linear, playdate.easingFunctions.linear, playdate.easingFunctions.linear}
     else
         local x2, y2 = gridCoordToScreen(self.target.x, self.target.y)
         animatorGeometry = playdate.geometry.lineSegment.new(x1, y1, x2, y2)
     end
-    self.animator = gfx.animator.new(movementDutyCycle*movementInterval, animatorGeometry)
+    self.animator = gfx.animator.new(animatorDurations, animatorGeometry, easingFns)
     self.x, self.y = self.target.x, self.target.y -- animator takes over location for the time being
     if (appleWillBeEaten) then
         playdate.timer.new(movementDutyCycle*movementInterval, function()
