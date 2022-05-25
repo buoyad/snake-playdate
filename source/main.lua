@@ -86,110 +86,21 @@ function apple:move(segments)
     self.sprite:moveTo( rx + gridUnit / 2, ry + gridUnit /2 ) -- this is where the center of the sprite is placed; so we need to correct by half the grid unit size. 
 end
 
-class("Segment").extends()
-
 -- Snake segment config
 local segmentPadding = 0
 
-function Segment:init(x, y)
-    Segment.super.init(self)
-    self.x, self.y = x, y
-    self.animator = nil
-end
-
-function Segment:setTarget(direction)
-    if not direction then return end
-    if direction == up then
-        self.target = {x = self.x, y = self.y - 1}
-    elseif direction == right then
-        self.target = {x = self.x + 1, y = self.y}
-    elseif direction == down then
-        self.target = {x = self.x, y = self.y + 1}
-    elseif direction == left then
-        self.target = {x = self.x - 1, y = self.y}
-    end
-    
-    if wrapAroundScreen then
-        if self.target.x >= gridWidth then self.target.x = 0 end
-        if self.target.x < 0 then self.target.x = gridWidth-1 end
-        if self.target.y >= gridHeight then self.target.y = 0 end
-        if self.target.y < 0 then self.target.y = gridHeight-1 end
-    end
-
-    -- print("new target is "..printPoint(self.target))
-    -- print("apple is at "..printPoint(apple.gridLoc))
-    if self.target.x == apple.gridLoc.x and self.target.y == apple.gridLoc.y then
-        appleWillBeEaten = true
-    end
-end
-
-function Segment:draw()
-    local x, y = gridCoordToScreen(self.x, self.y)
-    if self.animator and not self.animator:ended() then
-        local currPoint = self.animator:currentValue()
-        if currPoint then
-            x, y = currPoint.x, currPoint.y
-        end
-    end
+function drawSegment(x, y)
+    local x, y = gridCoordToScreen(x, y)
     gfx.fillRect(
         x+1+segmentPadding, 
         y+1+segmentPadding, 
         gridUnit-1-segmentPadding*2, 
         gridUnit-1-segmentPadding*2)
-end
 
-function Segment:isGoingOffScreen()
-    return self.target.x - self.x < -2 or -- off screen to the right -->
-        self.target.x - self.x > 2 or -- <--
-        self.target.y - self.y < -2 or -- off bottom off screen
-        self.target.y - self.y > 2 -- off top of screen
-end
-
-function Segment:move()
-    if not self.target then return end
-    local x1, y1 = gridCoordToScreen(self.x, self.y)
-    local animatorGeometry
-    local animatorDurations = movementDutyCycle*movementInterval
-    local easingFns = playdate.easingFunctions.linear
-    if self:isGoingOffScreen() then
-        local x2, y2, x3, y3
-        local x4, y4 = gridCoordToScreen(self.target.x, self.target.y)
-        if self.target.x - self.x < -2 then
-            x2, y2 = x1 + gridUnit, y1
-            x3, y3 = x4 - gridUnit, y4
-        elseif self.target.x - self.x > 2 then
-            x2, y2 = x1 - gridUnit, y1
-            x3, y3 = x4 + gridUnit, y4
-        elseif self.target.y - self.y < -2 then
-            x2, y2 = x1, y1 + gridUnit
-            x3, y3 = x4, y4 - gridUnit
-        elseif self.target.y - self.y > 2 then
-            x2, y2 = x1, y1 - gridUnit
-            x3, y3 = x4, y4 + gridUnit
-        end
-        local p1 = playdate.geometry.lineSegment.new(x1, y1, x2, y2)
-        local p2 = playdate.geometry.lineSegment.new(x2, y2, x3, y3)
-        local p3 = playdate.geometry.lineSegment.new(x3, y3, x4, y4)
-        animatorGeometry = {p1, p2, p3}
-        animatorDurations = {animatorDurations/2, 0, animatorDurations/2}
-        easingFns = {playdate.easingFunctions.linear, playdate.easingFunctions.linear, playdate.easingFunctions.linear}
-    else
-        local x2, y2 = gridCoordToScreen(self.target.x, self.target.y)
-        animatorGeometry = playdate.geometry.lineSegment.new(x1, y1, x2, y2)
-    end
-    self.animator = gfx.animator.new(animatorDurations, animatorGeometry, easingFns)
-    self.x, self.y = self.target.x, self.target.y -- animator takes over location for the time being
-    if (appleWillBeEaten) then
-        playdate.timer.new(movementDutyCycle*movementInterval, function()
-            gamestate.player:eat()
-        end)
-        appleWillBeEaten = false
-    end
 end
 
 local player = {
-    headCoords = {},
-    segments = {},
+    segmentCoords = {},
     sprite = nil,
     moving = false,
     direction = right,
@@ -198,28 +109,56 @@ local player = {
 }
 gamestate.player = player
 
-function player:printHeadCoords()
-    -- print("Player coordinates:")
-    for i = 1, #player.headCoords do
-        local coord = player.headCoords[i]
-        -- print("i: "..printPoint(coord))
+function player:printSegmentCoords()
+    print("Player coordinates:")
+    for i = 1, #player.segmentCoords do
+        local coord = player.segmentCoords[i]
+        print("i: "..printPoint(coord))
     end
+end
+
+function player:setTarget()
+    if not self.direction then return end
+    local ret = {}
+    local headX, headY = self.segmentCoords[1].x, self.segmentCoords[1].y
+    if self.direction == up then
+        ret = {x = headX, y = headY - 1}
+    elseif self.direction == right then
+        ret = {x = headX + 1, y = headY}
+    elseif self.direction == down then
+        ret = {x = headX, y = headY + 1}
+    elseif self.direction == left then
+        ret = {x = headX - 1, y = headY}
+    end
+    
+    if wrapAroundScreen then
+        if ret.x >= gridWidth then ret.x = 0 end
+        if ret.x < 0 then ret.x = gridWidth-1 end
+        if ret.y >= gridHeight then ret.y = 0 end
+        if ret.y < 0 then ret.y = gridHeight-1 end
+    end
+
+    return ret
 end
 
 function player:move()
     -- set targets for all the player segments
-    player:printHeadCoords()
-    for i = #player.headCoords,2,-1 do
-        player.headCoords[i] = player.headCoords[i-1]
-        player.segments[i].target = player.headCoords[i]
+    -- player:printSegmentCoords()
+    for i = #player.segmentCoords,2,-1 do
+        player.segmentCoords[i] = player.segmentCoords[i-1]
     end
-    player.segments[1]:setTarget(player.direction)
     player.prevDirection = player.direction
-    player.headCoords[1] = player.segments[1].target
-    player:printHeadCoords()
-    -- move them
-    for i, seg in pairs(player.segments) do
-        seg:move()
+    player.segmentCoords[1] = player:setTarget()
+    if player.segmentCoords[1].x == apple.gridLoc.x and 
+       player.segmentCoords[1].y == apple.gridLoc.y then
+        self:eat()
+    end
+    -- player:printSegmentCoords()
+end
+
+function player:draw()
+    for i = 1,#player.segmentCoords do
+        drawSegment(player.segmentCoords[i].x, player.segmentCoords[i].y)     
     end
 end
 
@@ -228,11 +167,9 @@ function player:setMoving()
 end
 
 function player:addTailLinks(howMany)
-    local ls = player.segments[#player.segments]
-    local lc = player.headCoords[#player.headCoords]
+    local lc = player.segmentCoords[#player.segmentCoords]
     for i = 1, howMany do
-        player.segments[#player.segments+1] = Segment(ls.x, ls.y)
-        player.headCoords[#player.headCoords+1] = {x = lc.x, y = lc.y}
+        player.segmentCoords[#player.segmentCoords+1] = {x = lc.x, y = lc.y}
     end
 end
 
@@ -248,7 +185,7 @@ local function resetMovementTimer()
 end
 
 function player:eat()
-    apple:move(player.segments)
+    apple:move(player.segmentCoords)
     self:addTailLinks(linksToAddPerApple)
     self.score += 1;
     if self.score % 3 == 0 then
@@ -272,7 +209,7 @@ local function drawStatusText()
 
     if showDebugInfo then
         debugFont:drawText("mvmt interval: "..math.floor(movementInterval).."ms\n\z
-            player length: "..#player.segments, 0, statusBarHeight)
+            player length: "..#player.segmentCoords, 0, statusBarHeight)
     end
 end
 
@@ -298,13 +235,13 @@ local function gameplaySetup()
     --       and call :setZIndex() with some low number so the background stays behind
     --       your other sprites.
 
-    -- local backgroundImage = gfx.image.new( "images/background" )
-    -- assert( backgroundImage )
+    local backgroundImage = gfx.image.new("images/background")
+    assert(backgroundImage)
 
     gfx.sprite.setBackgroundDrawingCallback(
         function( x, y, width, height )
             gfx.setClipRect( x, y, width, height ) -- let's only draw the part of the screen that's dirty
-            gfx.fillRect(0, 0, 400, statusBarHeight)
+            backgroundImage:draw(0, 0)
             gfx.clearClipRect() -- clear so we don't interfere with drawing that comes after this
 
             if showGrid then drawGrid() end
@@ -324,8 +261,7 @@ local function gameplaySetup()
     apple:move()
 
     for i = 1, 3 do
-        player.segments[i] = Segment(math.floor(gridWidth/2), math.floor(gridHeight/2))
-        player.headCoords[i] = {x = math.floor(gridWidth/2), y = math.floor(gridHeight/2)}
+        player.segmentCoords[i] = {x = math.floor(gridWidth/2), y = math.floor(gridHeight/2)}
     end
     resetMovementTimer()
 
@@ -360,20 +296,13 @@ function playdate.update()
     end
     gfx.sprite.update()
 
-    for i, seg in pairs(player.segments) do
-        seg:draw()
-    end
-
+    player:draw()
+    
     if player.moving then
         player:move()
         player.moving = false
     end
 
-    -- Call the functions below in playdate.update() to draw sprites and keep
-    -- timers updated. (We aren't using timers in this example, but in most
-    -- average-complexity games, you will.)
-
-    
     drawStatusText()
 
     playdate.timer.updateTimers()
