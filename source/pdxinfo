@@ -1,3 +1,5 @@
 name=Snek
 author=Danny Ayoub
 description=Hardcore snek for hardcore snekkers
+bundleID=com.ayoubd.snek
+version=0.1
