@@ -34,6 +34,9 @@ function ctx:setGameMode(gm)
     if gm == Utils.gmPlaying then
         self.gameMode = gm
         self.gameModeState = GameplaySetup()
+    elseif gm == Utils.gmMenu then
+        self.gameMode = gm
+        self.gameModeState = MenuSetup()
     end
 end
 
@@ -52,8 +55,7 @@ local function myGameSetUp()
             Utils.showGrid = checked
         end)
 
-    -- Start with menu eventually. For now, just start the game.
-    ctx:setGameMode(Utils.gmPlaying)
+    ctx:setGameMode(Utils.gmMenu)
 end
 
 myGameSetUp()
@@ -63,7 +65,7 @@ function playdate.update()
     if ctx.gameMode == Utils.gmPlaying then
         GameplayUpdate(ctx)
     elseif ctx.gameMode == Utils.gmMenu then
-        menu:update()
+        menu:update(ctx)
     end
 
 
