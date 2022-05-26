@@ -1,5 +1,6 @@
 import "CoreLibs/graphics"
 import "CoreLibs/object"
+import "sounds"
 import "utils"
 
 local gfx <const> = playdate.graphics
@@ -49,6 +50,7 @@ class("Player",
 
 function Player:init()
     Player.super.init(self)
+    self.segmentCoords = {}
 end
 
 function Player:printSegmentCoords()
@@ -83,9 +85,17 @@ function Player:setTarget()
     return ret
 end
 
-function Player:move(state)
+function Player:die(ctx)
+    local state = ctx.gameModeState
+    sounds:death()
+    if state.movementTimer then state.movementTimer:remove() end
+    ctx.gameModeState.dead = true
+end
+
+function Player:move(ctx)
     -- move all the segment coordinates up a spot
     -- Player:printSegmentCoords()
+    local state = ctx.gameModeState
     for i = #self.segmentCoords,2,-1 do
         self.segmentCoords[i] = self.segmentCoords[i-1]
     end
@@ -95,7 +105,7 @@ function Player:move(state)
     local target = self:setTarget()
     if intersectsSegments(self.segmentCoords, target) then
         -- we died :(
-        sounds:death()
+        self:die(ctx)
     end
 
     self.segmentCoords[1] = target -- move the head forward
@@ -156,15 +166,19 @@ local function getRandGridCell()
     return { x = math.random(0, math.floor(Utils:gridWidth() - 1)), y = math.random(0, math.floor(Utils:gridHeight() - 1)) }
 end
 
-function apple:move(segments)
+function apple:move(segments, niceSpawn)
     self.gridLoc = getRandGridCell()
     if segments then
         while intersectsSegments(segments, self.gridLoc) do
             self.gridLoc = getRandGridCell()
         end
     end
+    if niceSpawn then
+        self.gridLoc.x = Utils:gridWidth() / 2 + 3
+        self.gridLoc.y = Utils:gridHeight() / 2
+    end
     local rx, ry = Utils:gridCoordToScreen(self.gridLoc.x, self.gridLoc.y)
-    self.sprite:moveTo(rx + Utils.gridUnit / 2, ry + Utils.gridUnit / 2) -- this is where the center of the sprite is placed; so we need to correct by half the grid unit size. 
+    self.sprite:moveTo(rx + Utils.gridUnit / 2, ry + Utils.gridUnit / 2) -- this is where the center of the sprite is placed; so we need to correct by half the grid unit size.
 end
 
 local function drawStatusText(state)
@@ -232,10 +246,11 @@ function GameplaySetup()
     local appleImage = gfx.image.new("images/apple")
     assert(appleImage) -- make sure the image was where we thought
 
+    if apple.sprite then apple.sprite:remove() end
     apple.sprite = gfx.sprite.new(appleImage)
     apple.sprite:setScale(Utils.gridUnit / appleImageDim)
     apple.sprite:add() -- This is critical!
-    apple:move()
+    apple:move(nil, Utils.niceAppleSpawn)
 
     -- set up player
     local player = Player()
@@ -251,6 +266,7 @@ function GameplaySetup()
         movementTimer = nil,
         movementInterval = 300,
         level = 1,
+        dead = false,
     }
 
     player:resetMovementTimer(gameplayState)
@@ -259,31 +275,49 @@ function GameplaySetup()
 
 end
 
-function GameplayUpdate(gamestate)
-    if gamestate.gameMode ~= Utils.gmPlaying then
-        error("Incorrect game state in GameplayUpdate: expected "..Utils.gmPlaying..", got "..gamestate.gameMode)
-    end
-    local state = gamestate.gameModeState
+local deathStr <const> = "You died!"
+local aPromptStr <const> = "Ⓐ retry"
+local bPromptStr <const> = "Ⓑ menu"
+local function drawEndScreen(ctx)
+    gfx.pushContext()
+    Utils.largeBoldFont:drawTextAligned(deathStr, Utils.screenWidth/2, Utils.screenHeight/2-40, kTextAlignment.center)
+    Utils.uiFont:drawTextAligned(aPromptStr, Utils.screenWidth/3, Utils.screenHeight/2 + 40, kTextAlignment.center)
+    Utils.uiFont:drawTextAligned(bPromptStr, 2*Utils.screenWidth/3, Utils.screenHeight/2 + 40, kTextAlignment.center)
+end
 
-    if playdate.buttonIsPressed(playdate.kButtonUp) and state.player.prevDirection ~= down then
-        state.player.direction = up
+function GameplayUpdate(ctx)
+    if ctx.gameMode ~= Utils.gmPlaying then
+        error("Incorrect game state in GameplayUpdate: expected "..Utils.gmPlaying..", got "..ctx.gameMode)
     end
-    if playdate.buttonIsPressed(playdate.kButtonRight) and state.player.prevDirection ~= left then
-        state.player.direction = right
-    end
-    if playdate.buttonIsPressed(playdate.kButtonDown) and state.player.prevDirection ~= up then
-        state.player.direction = down
-    end
-    if playdate.buttonIsPressed(playdate.kButtonLeft) and state.player.prevDirection ~= right then
-        state.player.direction = left
-    end
+    local state = ctx.gameModeState
 
-    gfx.sprite.update()
+    if state.dead then
+        gfx.sprite.update()
+        drawEndScreen(ctx)
 
-    state.player:draw()
+        if playdate.buttonIsPressed(playdate.kButtonA) then
+            ctx.gameModeState = GameplaySetup()
+        end
+    else
+        if playdate.buttonIsPressed(playdate.kButtonUp) and state.player.prevDirection ~= down then
+            state.player.direction = up
+        end
+        if playdate.buttonIsPressed(playdate.kButtonRight) and state.player.prevDirection ~= left then
+            state.player.direction = right
+        end
+        if playdate.buttonIsPressed(playdate.kButtonDown) and state.player.prevDirection ~= up then
+            state.player.direction = down
+        end
+        if playdate.buttonIsPressed(playdate.kButtonLeft) and state.player.prevDirection ~= right then
+            state.player.direction = left
+        end
+        gfx.sprite.update()
+        state.player:draw()
+    end
+    
 
     if state.player.moving then
-        state.player:move(state)
+        state.player:move(ctx)
         state.player.moving = false
     end
     drawStatusText(state)

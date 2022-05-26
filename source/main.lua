@@ -19,12 +19,12 @@ local statusBarHeight = 20
 local screenWidth = 400
 local screenHeight = 240
 
-local gamestate = {
+local ctx = {
     gameMode = Utils.gmMenu,
     gameModeState = nil,
 }
 
-function gamestate:setGameMode(gm)
+function ctx:setGameMode(gm)
     if gm == Utils.gmPlaying then
         self.gameMode = gm
         self.gameModeState = GameplaySetup()
@@ -47,16 +47,16 @@ local function myGameSetUp()
         end)
 
     -- Start with menu eventually. For now, just start the game.
-    gamestate:setGameMode(Utils.gmPlaying)
+    ctx:setGameMode(Utils.gmPlaying)
 end
 
 myGameSetUp()
 
 function playdate.update()
 
-    if gamestate.gameMode == Utils.gmPlaying then
-        GameplayUpdate(gamestate)
-    elseif gamestate.gameMode == Utils.gmMenu then
+    if ctx.gameMode == Utils.gmPlaying then
+        GameplayUpdate(ctx)
+    elseif ctx.gameMode == Utils.gmMenu then
         menu:update()
     end
 

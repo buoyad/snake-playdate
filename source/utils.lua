@@ -4,16 +4,25 @@ local gfx <const> = playdate.graphics
 local debugFont = gfx.font.new("fonts/Small")
 assert(debugFont, "debug font")
 
+local largeBoldFont = gfx.font.new("fonts/Nontendo-Bold-2x")
+assert(largeBoldFont, "large bold font")
+
+local uiFont = gfx.font.new("fonts/Roobert-11-Bold")
+assert(uiFont, "UI font")
+
 Utils = {
     statusBarHeight = 20,
     screenWidth = 400,
     screenHeight = 240,
     gridUnit = 10,
     debugFont = debugFont,
+    largeBoldFont = largeBoldFont,
+    uiFont = uiFont,
     showDebugInfo = true,
     showGrid = false,
     gmMenu = "menu",
-    gmPlaying = "playing"
+    gmPlaying = "playing",
+    niceAppleSpawn = true
 }
 
 
