@@ -3,6 +3,10 @@ import "CoreLibs/graphics"
 import "CoreLibs/easing"
 import "CoreLibs/sprites"
 import "CoreLibs/timer"
+import "sounds"
+
+assert(sounds)
+sounds:init()
 
 local gfx <const> = playdate.graphics
 
@@ -149,7 +153,15 @@ function player:move()
         player.segmentCoords[i] = player.segmentCoords[i-1]
     end
     player.prevDirection = player.direction
-    player.segmentCoords[1] = player:setTarget() -- move the head forward
+
+    -- check if our target eats ourself
+    local target = player:setTarget()
+    if intersectsSegments(player.segmentCoords, target) then
+        -- we died :(
+        sounds:death()
+    end
+
+    player.segmentCoords[1] = target -- move the head forward
 
     -- if we ran into the apple, eat it
     if player.segmentCoords[1].x == apple.gridLoc.x and 
