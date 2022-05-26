@@ -11,7 +11,7 @@ Utils = {
     gridUnit = 10,
     debugFont = debugFont,
     showDebugInfo = true,
-    showGrid = true,
+    showGrid = false,
 }
 
 

@@ -31,6 +31,9 @@ local gamestate = {
 local function myGameSetUp()
     gamestate.gameModeState = GameplaySetup()
     gamestate.gameMode = gmPlaying
+
+    local menu = playdate.getSystemMenu()
+    menu:addCheckmarkMenuItem("debug info", Utils.showDebugInfo, function(checked) Utils.showDebugInfo = checked end)
 end
 
 -- Start with menu eventually. For now, just start the game.
