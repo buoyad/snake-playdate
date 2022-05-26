@@ -19,18 +19,14 @@ local statusBarHeight = 20
 local screenWidth = 400
 local screenHeight = 240
 
--- Game modes
-local gmMenu = "menu"
-local gmPlaying = "playing"
-
 local gamestate = {
-    gameMode = gmMenu,
+    gameMode = Utils.gmMenu,
     gameModeState = nil,
 }
 
 local function myGameSetUp()
     gamestate.gameModeState = GameplaySetup()
-    gamestate.gameMode = gmPlaying
+    gamestate.gameMode = Utils.gmPlaying
 
     local menu = playdate.getSystemMenu()
     menu:addCheckmarkMenuItem("debug info", Utils.showDebugInfo, function(checked) Utils.showDebugInfo = checked end)
@@ -41,9 +37,9 @@ myGameSetUp()
 
 function playdate.update()
 
-    if gamestate.gameMode == gmPlaying then
+    if gamestate.gameMode == Utils.gmPlaying then
         GameplayUpdate(gamestate.gameModeState)
-    elseif gamestate.gameMode == gmMenu then
+    elseif gamestate.gameMode == Utils.gmMenu then
         menu:update()
     end
 

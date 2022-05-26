@@ -6,10 +6,6 @@ local gfx <const> = playdate.graphics
 -- Snake segment config
 local segmentPadding = 0
 
--- Snake movement loop parameters
-local movementInterval = 300 -- how often the snake moves in ms
-local movementTimer = nil
-
 -- Directions
 local up <const>, right <const>, left <const>, down <const> = 1, 2, 3, 4
 
@@ -18,7 +14,6 @@ local lvlUpPerApples = 3
 local maxLvl = 15
 local appleImageDim = 20
 local linksToAddPerApple = 3
-local level = 1
 local wrapAroundScreen = true
 
 local function drawSegment(x, y)
@@ -51,8 +46,8 @@ local player = {
 
 function player:printSegmentCoords()
     print("Player coordinates:")
-    for i = 1, #player.segmentCoords do
-        local coord = player.segmentCoords[i]
+    for i = 1, #self.segmentCoords do
+        local coord = self.segmentCoords[i]
         print("i: "..Utils.printPoint(coord))
     end
 end
@@ -84,31 +79,31 @@ end
 function player:move(state)
     -- move all the segment coordinates up a spot
     -- player:printSegmentCoords()
-    for i = #player.segmentCoords,2,-1 do
-        player.segmentCoords[i] = player.segmentCoords[i-1]
+    for i = #self.segmentCoords,2,-1 do
+        self.segmentCoords[i] = self.segmentCoords[i-1]
     end
-    player.prevDirection = player.direction
+    self.prevDirection = self.direction
 
     -- check if our target eats ourself
-    local target = player:setTarget()
-    if intersectsSegments(player.segmentCoords, target) then
+    local target = self:setTarget()
+    if intersectsSegments(self.segmentCoords, target) then
         -- we died :(
         sounds:death()
     end
 
-    player.segmentCoords[1] = target -- move the head forward
+    self.segmentCoords[1] = target -- move the head forward
 
     -- if we ran into the apple, eat it
-    if player.segmentCoords[1].x == state.apple.gridLoc.x and 
-       player.segmentCoords[1].y == state.apple.gridLoc.y then
+    if self.segmentCoords[1].x == state.apple.gridLoc.x and 
+       self.segmentCoords[1].y == state.apple.gridLoc.y then
         self:eat(state)
     end
-    -- player:printSegmentCoords()
+    -- self:printSegmentCoords()
 end
 
 function player:draw()
-    for i = 1,#player.segmentCoords do
-        drawSegment(player.segmentCoords[i].x, player.segmentCoords[i].y)     
+    for i = 1,#self.segmentCoords do
+        drawSegment(self.segmentCoords[i].x, self.segmentCoords[i].y)     
     end
 end
 
@@ -117,31 +112,31 @@ function player:setMoving()
 end
 
 function player:addTailLinks(howMany)
-    local lc = player.segmentCoords[#player.segmentCoords]
+    local lc = self.segmentCoords[#self.segmentCoords]
     for i = 1, howMany do
-        player.segmentCoords[#player.segmentCoords+1] = {x = lc.x, y = lc.y}
+        self.segmentCoords[#self.segmentCoords+1] = {x = lc.x, y = lc.y}
     end
 end
 
-local function resetMovementTimer()
+function player:resetMovementTimer(state)
     local function movePlayer()
         player.moving = true
     end
     
-    if movementTimer then movementTimer:remove() end
+    if state.movementTimer then state.movementTimer:remove() end
 
-    movementTimer = playdate.timer.new(movementInterval, movePlayer)
-    movementTimer.repeats = true
+    state.movementTimer = playdate.timer.new(state.movementInterval, movePlayer)
+    state.movementTimer.repeats = true
 end
 
 function player:eat(state)
     state.apple:move(player.segmentCoords)
     self:addTailLinks(linksToAddPerApple)
     self.score += 1;
-    if self.score % lvlUpPerApples == 0 and level < maxLvl then
-        movementInterval -= .15 * movementInterval -- lvlSpeedups[level] -- math.log(3+3*self.score, 1.5)
-        level += 1
-        resetMovementTimer()
+    if self.score % lvlUpPerApples == 0 and state.level < maxLvl then
+        state.movementInterval -= .15 * state.movementInterval -- lvlSpeedups[state.level] -- math.log(3+3*self.score, 1.5)
+        state.level += 1
+        self:resetMovementTimer(state)
     end
 end
 
@@ -165,14 +160,14 @@ function apple:move(segments)
     self.sprite:moveTo(rx + Utils.gridUnit / 2, ry + Utils.gridUnit / 2) -- this is where the center of the sprite is placed; so we need to correct by half the grid unit size. 
 end
 
-local function drawStatusText()
+local function drawStatusText(state)
     -- store current draw mode to reset it later
     local origDrawMode = gfx.getImageDrawMode()
     -- set text to white
     gfx.setImageDrawMode(gfx.kDrawModeFillWhite)
 
-    local lvlTxt = "Lvl " .. level
-    if level == maxLvl then
+    local lvlTxt = "Lvl " .. state.level
+    if state.level == maxLvl then
         lvlTxt = lvlTxt .. " !!MAX!! "
     end
 
@@ -183,7 +178,7 @@ local function drawStatusText()
     gfx.setImageDrawMode(origDrawMode)
 
     if Utils.showDebugInfo then
-        Utils.debugFont:drawText("mvmt interval: " .. math.floor(movementInterval) .. "ms\n\z
+        Utils.debugFont:drawText("mvmt interval: " .. math.floor(state.movementInterval) .. "ms\n\z
             player length: " .. #player.segmentCoords, 0, Utils.statusBarHeight)
     end
 end
@@ -238,20 +233,27 @@ function GameplaySetup()
     for i = 1, 3 do
         player.segmentCoords[i] = { x = math.floor(Utils:gridWidth() / 2), y = math.floor(Utils:gridHeight() / 2) }
     end
-    resetMovementTimer()
-
+    
     local gameplayState = {
+        gameMode = Utils.gmPlaying,
         player = player,
         apple = apple,
-        movementTimer = movementTimer,
-        level = level,
+        movementTimer = nil,
+        movementInterval = 300,
+        level = 1,
     }
+
+    player:resetMovementTimer(gameplayState)
 
     return gameplayState
 
 end
 
 function GameplayUpdate(state)
+    if state.gameMode ~= Utils.gmPlaying then
+        error("Incorrect game state in GameplayUpdate: expected "..Utils.gmPlaying..", got "..state.gameMode)
+    end
+
     if playdate.buttonIsPressed(playdate.kButtonUp) and state.player.prevDirection ~= down then
         state.player.direction = up
     end
@@ -273,5 +275,5 @@ function GameplayUpdate(state)
         state.player:move(state)
         state.player.moving = false
     end
-    drawStatusText()
+    drawStatusText(state)
 end

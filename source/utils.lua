@@ -12,6 +12,8 @@ Utils = {
     debugFont = debugFont,
     showDebugInfo = true,
     showGrid = false,
+    gmMenu = "menu",
+    gmPlaying = "playing"
 }
 
 
