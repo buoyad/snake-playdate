@@ -42,6 +42,7 @@ end
 
 local function myGameSetUp()
     local menu = playdate.getSystemMenu()
+    menu:addMenuItem("snek home", function() ctx:setGameMode(Utils.gmMenu) end)
     menu:addCheckmarkMenuItem("debug info",
         Utils.showDebugInfo,
         function(checked) Utils.showDebugInfo = checked end)

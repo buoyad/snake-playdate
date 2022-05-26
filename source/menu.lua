@@ -28,6 +28,9 @@ end
 
 function drawMenu()
     Utils.largeBoldFont:drawTextAligned("SNEK", Utils.screenWidth / 2, Utils.screenHeight / 2 - 40, kTextAlignment.center)
+    if (Utils.savedata.hiScore ~= 0) then
+        Utils.uiFont:drawTextAligned("High score: " .. Utils.savedata.hiScore, Utils.screenWidth / 2, Utils.screenHeight / 2, kTextAlignment.center)
+    end
     Utils.uiFont:drawTextAligned("Press Ⓐ to start", Utils.screenWidth / 2, Utils.screenHeight / 2 + 40, kTextAlignment.center)
 end
 
