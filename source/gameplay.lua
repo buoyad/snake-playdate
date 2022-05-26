@@ -1,4 +1,5 @@
 import "CoreLibs/graphics"
+import "CoreLibs/object"
 import "utils"
 
 local gfx <const> = playdate.graphics
@@ -35,16 +36,22 @@ local function intersectsSegments(segments, gridLoc)
     return false
 end
 
-local player = {
-    segmentCoords = {},
-    sprite = nil,
-    moving = false,
-    direction = right,
-    prevDirection = nil,
-    score = 0,
-}
+class("Player",
+    {
+        segmentCoords = {},
+        sprite = nil,
+        moving = false,
+        direction = right,
+        prevDirection = nil,
+        score = 0,
+    }
+).extends(Object)
 
-function player:printSegmentCoords()
+function Player:init()
+    Player.super.init(self)
+end
+
+function Player:printSegmentCoords()
     print("Player coordinates:")
     for i = 1, #self.segmentCoords do
         local coord = self.segmentCoords[i]
@@ -52,7 +59,7 @@ function player:printSegmentCoords()
     end
 end
 
-function player:setTarget()
+function Player:setTarget()
     if not self.direction then return end
     local ret = {}
     local headX, headY = self.segmentCoords[1].x, self.segmentCoords[1].y
@@ -76,9 +83,9 @@ function player:setTarget()
     return ret
 end
 
-function player:move(state)
+function Player:move(state)
     -- move all the segment coordinates up a spot
-    -- player:printSegmentCoords()
+    -- Player:printSegmentCoords()
     for i = #self.segmentCoords,2,-1 do
         self.segmentCoords[i] = self.segmentCoords[i-1]
     end
@@ -101,26 +108,26 @@ function player:move(state)
     -- self:printSegmentCoords()
 end
 
-function player:draw()
+function Player:draw()
     for i = 1,#self.segmentCoords do
         drawSegment(self.segmentCoords[i].x, self.segmentCoords[i].y)     
     end
 end
 
-function player:setMoving()
+function Player:setMoving()
     self.moving = true
 end
 
-function player:addTailLinks(howMany)
+function Player:addTailLinks(howMany)
     local lc = self.segmentCoords[#self.segmentCoords]
     for i = 1, howMany do
         self.segmentCoords[#self.segmentCoords+1] = {x = lc.x, y = lc.y}
     end
 end
 
-function player:resetMovementTimer(state)
+function Player:resetMovementTimer(state)
     local function movePlayer()
-        player.moving = true
+        self.moving = true
     end
     
     if state.movementTimer then state.movementTimer:remove() end
@@ -129,8 +136,8 @@ function player:resetMovementTimer(state)
     state.movementTimer.repeats = true
 end
 
-function player:eat(state)
-    state.apple:move(player.segmentCoords)
+function Player:eat(state)
+    state.apple:move(self.segmentCoords)
     self:addTailLinks(linksToAddPerApple)
     self.score += 1;
     if self.score % lvlUpPerApples == 0 and state.level < maxLvl then
@@ -171,7 +178,7 @@ local function drawStatusText(state)
         lvlTxt = lvlTxt .. " !!MAX!! "
     end
 
-    gfx.drawText("Score: " .. player.score, 0, 0)
+    gfx.drawText("Score: " .. state.player.score, 0, 0)
     gfx.drawTextAligned(lvlTxt, Utils.screenWidth, 0, kTextAlignment.right)
 
     -- set draw mode back
@@ -179,7 +186,7 @@ local function drawStatusText(state)
 
     if Utils.showDebugInfo then
         Utils.debugFont:drawText("mvmt interval: " .. math.floor(state.movementInterval) .. "ms\n\z
-            player length: " .. #player.segmentCoords, 0, Utils.statusBarHeight)
+            player length: " .. #state.player.segmentCoords, 0, Utils.statusBarHeight)
     end
 end
 
@@ -218,7 +225,7 @@ function GameplaySetup()
         end
     )
 
-    -- Set up the player sprite.
+    -- Set up the apple sprite.
     -- The :setCenter() call specifies that the sprite will be anchored at its center.
     -- The :moveTo() call moves our sprite to the center of the display.
 
@@ -229,6 +236,9 @@ function GameplaySetup()
     apple.sprite:setScale(Utils.gridUnit / appleImageDim)
     apple.sprite:add() -- This is critical!
     apple:move()
+
+    -- set up player
+    local player = Player()
 
     for i = 1, 3 do
         player.segmentCoords[i] = { x = math.floor(Utils:gridWidth() / 2), y = math.floor(Utils:gridHeight() / 2) }
@@ -249,10 +259,11 @@ function GameplaySetup()
 
 end
 
-function GameplayUpdate(state)
-    if state.gameMode ~= Utils.gmPlaying then
-        error("Incorrect game state in GameplayUpdate: expected "..Utils.gmPlaying..", got "..state.gameMode)
+function GameplayUpdate(gamestate)
+    if gamestate.gameMode ~= Utils.gmPlaying then
+        error("Incorrect game state in GameplayUpdate: expected "..Utils.gmPlaying..", got "..gamestate.gameMode)
     end
+    local state = gamestate.gameModeState
 
     if playdate.buttonIsPressed(playdate.kButtonUp) and state.player.prevDirection ~= down then
         state.player.direction = up

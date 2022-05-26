@@ -24,21 +24,38 @@ local gamestate = {
     gameModeState = nil,
 }
 
-local function myGameSetUp()
-    gamestate.gameModeState = GameplaySetup()
-    gamestate.gameMode = Utils.gmPlaying
-
-    local menu = playdate.getSystemMenu()
-    menu:addCheckmarkMenuItem("debug info", Utils.showDebugInfo, function(checked) Utils.showDebugInfo = checked end)
+function gamestate:setGameMode(gm)
+    if gm == Utils.gmPlaying then
+        self.gameMode = gm
+        self.gameModeState = GameplaySetup()
+    end
 end
 
--- Start with menu eventually. For now, just start the game.
+local function myGameSetUp()
+    local menu = playdate.getSystemMenu()
+    menu:addCheckmarkMenuItem("debug info",
+        Utils.showDebugInfo,
+        function(checked) Utils.showDebugInfo = checked end)
+    menu:addCheckmarkMenuItem("show grid",
+        Utils.showGrid,
+        function(checked)
+            if Utils.showGrid and not checked then
+                -- mark entire background as dirty
+                playdate.graphics.sprite.redrawBackground()
+            end
+            Utils.showGrid = checked
+        end)
+
+    -- Start with menu eventually. For now, just start the game.
+    gamestate:setGameMode(Utils.gmPlaying)
+end
+
 myGameSetUp()
 
 function playdate.update()
 
     if gamestate.gameMode == Utils.gmPlaying then
-        GameplayUpdate(gamestate.gameModeState)
+        GameplayUpdate(gamestate)
     elseif gamestate.gameMode == Utils.gmMenu then
         menu:update()
     end
