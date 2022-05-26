@@ -291,8 +291,8 @@ local hiScoreStr <const> = "New high score!"
 local function drawEndScreen(ctx)
     gfx.pushContext()
     Utils.largeBoldFont:drawTextAligned(deathStr, Utils.screenWidth/2, Utils.screenHeight/2-40, kTextAlignment.center)
-    Utils.uiFont:drawTextAligned(aPromptStr, Utils.screenWidth/3, Utils.screenHeight/2 + 60, kTextAlignment.center)
-    Utils.uiFont:drawTextAligned(bPromptStr, 2*Utils.screenWidth/3, Utils.screenHeight/2 + 60, kTextAlignment.center)
+    Utils.uiFont:drawTextAligned(aPromptStr, Utils.screenWidth/2, Utils.screenHeight/2 + 60, kTextAlignment.center)
+    -- Utils.uiFont:drawTextAligned(bPromptStr, 2*Utils.screenWidth/3, Utils.screenHeight/2 + 60, kTextAlignment.center)
     if ctx.gameModeState.newHiScore then
         Utils.uiFont:drawTextAligned(hiScoreStr.."\nPrevious record: "..ctx.gameModeState.prevHiScore, Utils.screenWidth/2, Utils.screenHeight/2, kTextAlignment.center)
     end
@@ -309,7 +309,9 @@ function GameplayUpdate(ctx)
         drawEndScreen(ctx)
 
         if playdate.buttonIsPressed(playdate.kButtonA) then
-            ctx.gameModeState = GameplaySetup()
+            ctx:setGameMode(Utils.gmPlaying)
+        -- elseif playdate.buttonIsPressed(playdate.kButtonB) then
+        --     ctx:setGameMode(Utils.gmMenu)
         end
     else
         if playdate.buttonIsPressed(playdate.kButtonUp) and state.player.prevDirection ~= down then
