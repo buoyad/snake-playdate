@@ -10,6 +10,10 @@ assert(largeBoldFont, "large bold font")
 local uiFont = gfx.font.new("fonts/Roobert-11-Bold")
 assert(uiFont, "UI font")
 
+local savedata = {
+    hiScore = 0,
+}
+
 Utils = {
     statusBarHeight = 20,
     screenWidth = 400,
@@ -22,7 +26,8 @@ Utils = {
     showGrid = false,
     gmMenu = "menu",
     gmPlaying = "playing",
-    niceAppleSpawn = true
+    niceAppleSpawn = false,
+    savedata = savedata,
 }
 
 
@@ -31,6 +36,16 @@ function Utils.printPoint(p) return "(" .. p.x .. ", " .. p.y .. ")" end
 function Utils:gameplayAreaWidth() return self.screenWidth end
 
 function Utils:gameplayAreaHeight() return self.screenHeight - self.statusBarHeight end
+
+function Utils:writeSaveData()
+    -- print("write:")
+    -- printTable(self.savedata)
+    playdate.datastore.write(self.savedata)
+end
+
+function Utils:readSaveData()
+    return playdate.datastore.read()
+end
 
 -- Grid parameters
 function Utils:gridWidth() return self:gameplayAreaWidth() / self.gridUnit end

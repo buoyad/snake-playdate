@@ -10,6 +10,11 @@ import "utils"
 assert(sounds)
 sounds:init()
 
+local savedata = Utils:readSaveData()
+if savedata ~= nil then
+    Utils.savedata = savedata
+end
+
 local gfx <const> = playdate.graphics
 
 math.randomseed(playdate.getSecondsSinceEpoch())
@@ -22,6 +27,7 @@ local screenHeight = 240
 local ctx = {
     gameMode = Utils.gmMenu,
     gameModeState = nil,
+    savedata = nil,
 }
 
 function ctx:setGameMode(gm)

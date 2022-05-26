@@ -90,6 +90,12 @@ function Player:die(ctx)
     sounds:death()
     if state.movementTimer then state.movementTimer:remove() end
     ctx.gameModeState.dead = true
+    ctx.gameModeState.newHiScore = self.score > Utils.savedata.hiScore
+    if ctx.gameModeState.newHiScore then
+        ctx.gameModeState.prevHiScore = Utils.savedata.hiScore
+        Utils.savedata.hiScore = self.score
+        Utils:writeSaveData()
+    end
 end
 
 function Player:move(ctx)
@@ -200,7 +206,8 @@ local function drawStatusText(state)
 
     if Utils.showDebugInfo then
         Utils.debugFont:drawText("mvmt interval: " .. math.floor(state.movementInterval) .. "ms\n\z
-            player length: " .. #state.player.segmentCoords, 0, Utils.statusBarHeight)
+            player length: " .. #state.player.segmentCoords.."\n\z
+            high score: "..Utils.savedata.hiScore, 0, Utils.statusBarHeight)
     end
 end
 
@@ -267,6 +274,8 @@ function GameplaySetup()
         movementInterval = 300,
         level = 1,
         dead = false,
+        newHiScore = false,
+        prevHiScore = nil,
     }
 
     player:resetMovementTimer(gameplayState)
@@ -275,14 +284,18 @@ function GameplaySetup()
 
 end
 
-local deathStr <const> = "You died!"
+local deathStr <const> = "You dead!"
 local aPromptStr <const> = "Ⓐ retry"
 local bPromptStr <const> = "Ⓑ menu"
+local hiScoreStr <const> = "New high score!"
 local function drawEndScreen(ctx)
     gfx.pushContext()
     Utils.largeBoldFont:drawTextAligned(deathStr, Utils.screenWidth/2, Utils.screenHeight/2-40, kTextAlignment.center)
-    Utils.uiFont:drawTextAligned(aPromptStr, Utils.screenWidth/3, Utils.screenHeight/2 + 40, kTextAlignment.center)
-    Utils.uiFont:drawTextAligned(bPromptStr, 2*Utils.screenWidth/3, Utils.screenHeight/2 + 40, kTextAlignment.center)
+    Utils.uiFont:drawTextAligned(aPromptStr, Utils.screenWidth/3, Utils.screenHeight/2 + 60, kTextAlignment.center)
+    Utils.uiFont:drawTextAligned(bPromptStr, 2*Utils.screenWidth/3, Utils.screenHeight/2 + 60, kTextAlignment.center)
+    if ctx.gameModeState.newHiScore then
+        Utils.uiFont:drawTextAligned(hiScoreStr.."\nPrevious record: "..ctx.gameModeState.prevHiScore, Utils.screenWidth/2, Utils.screenHeight/2, kTextAlignment.center)
+    end
 end
 
 function GameplayUpdate(ctx)
