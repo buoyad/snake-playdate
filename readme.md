@@ -6,5 +6,5 @@
 
 - [ ] explode the snake when dead
 - [ ] fireworks when you get a new high score
-- [ ] game startup menu
+- [x] game startup menu
 - [ ] animation to show that screen wraps around
