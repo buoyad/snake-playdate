@@ -18,13 +18,22 @@ local appleImageDim = 20
 local linksToAddPerApple = 3
 local wrapAroundScreen = true
 
-local function drawSegment(x, y)
+local function drawSegment(x, y, invert)
+    local oldColor
+    if invert then
+        oldColor = gfx.getImageDrawMode()
+        gfx.setColor(gfx.kColorWhite)
+    end
     x, y = Utils:gridCoordToScreen(x, y)
     gfx.fillRect(
         x+1+segmentPadding, 
         y+1+segmentPadding, 
         Utils.gridUnit-1-segmentPadding*2, 
         Utils.gridUnit-1-segmentPadding*2)
+    
+    if invert then
+        gfx.setColor(oldColor)
+    end
 
 end
 
@@ -37,11 +46,17 @@ local function intersectsSegments(segments, gridLoc)
     return false
 end
 
+local function updateSprites(state)
+    gfx.sprite.update()
+    state.spritesUpdated = true
+end
+
 class("Player",
     {
         segmentCoords = {},
         sprite = nil,
         moving = false,
+        firstDraw = true,
         direction = right,
         prevDirection = nil,
         score = 0,
@@ -89,10 +104,10 @@ function Player:die(ctx)
     local state = ctx.gameModeState
     sounds:death()
     if state.movementTimer then state.movementTimer:remove() end
-    ctx.gameModeState.dead = true
-    ctx.gameModeState.newHiScore = self.score > Utils.savedata.hiScore
-    if ctx.gameModeState.newHiScore then
-        ctx.gameModeState.prevHiScore = Utils.savedata.hiScore
+    state.dead = true
+    state.newHiScore = self.score > Utils.savedata.hiScore
+    if state.newHiScore then
+        state.prevHiScore = Utils.savedata.hiScore
         Utils.savedata.hiScore = self.score
         Utils:writeSaveData()
     end
@@ -124,9 +139,15 @@ function Player:move(ctx)
     -- self:printSegmentCoords()
 end
 
-function Player:draw()
-    for i = 1,#self.segmentCoords do
-        drawSegment(self.segmentCoords[i].x, self.segmentCoords[i].y)     
+function Player:draw(state)
+    if state.spritesUpdated then
+        for i = 1,#self.segmentCoords do
+            drawSegment(self.segmentCoords[i].x, self.segmentCoords[i].y)     
+        end
+        state.spritesUpdated = false
+    else
+        drawSegment(self.segmentCoords[1].x, self.segmentCoords[1].y)
+        drawSegment(self.segmentCoords[#self.segmentCoords].x, self.segmentCoords[#self.segmentCoords].y, true)
     end
 end
 
@@ -154,6 +175,7 @@ end
 
 function Player:eat(state)
     state.apple:move(self.segmentCoords)
+    updateSprites(state)
     self:addTailLinks(linksToAddPerApple)
     self.score += 1;
     if self.score % lvlUpPerApples == 0 and state.level < maxLvl then
@@ -259,6 +281,8 @@ function GameplaySetup()
     apple.sprite:add() -- This is critical!
     apple:move(nil, Utils.niceAppleSpawn)
 
+    gfx.sprite.update()
+
     -- set up player
     local player = Player()
 
@@ -276,6 +300,7 @@ function GameplaySetup()
         dead = false,
         newHiScore = false,
         prevHiScore = nil,
+        spritesUpdated = true,
     }
 
     player:resetMovementTimer(gameplayState)
@@ -326,8 +351,7 @@ function GameplayUpdate(ctx)
         if playdate.buttonIsPressed(playdate.kButtonLeft) and state.player.prevDirection ~= right then
             state.player.direction = left
         end
-        gfx.sprite.update()
-        state.player:draw()
+        state.player:draw(state)
     end
     
 
